@@ -26,8 +26,14 @@ contract Vote {
 
     struct Candidates {
         address candid; //name of each proposal
+        string name;
         uint voteCount; //number of accumulated votes
+        bool status;
     }
+
+    mapping (address => Candidates) public votee;
+    Candidates[] public candidates;
+    address[] public _candidateKey;
 
     //voters: voted, access to vote, vote index
     struct Voter {
@@ -35,17 +41,12 @@ contract Vote {
         uint accessToVote;   // weight is accumulated by delegation
         uint voteIndex;      // index of the voted proposal
         address _voter;    
-
-        uint weight; // weight is accumulated by delegation
-        bool voted;  // if true, that person already voted
-        address delegate; // person delegated to
-        uint vote;         // index of the voted proposal
     }
 
-    Candidates[] public candidates;
     mapping(address => Voter) public voters; //voter's address mapped to voter detail
+    mapping(address => uint256) public total;
 
-    address public Admin;
+    address public Admin = msg.sender;
 
 
     constructor(string memory _name, string memory _symbol){
@@ -127,8 +128,8 @@ contract Vote {
     }
 //////voteeee
 
-    function assignAdmin() public returns(address) {
-       return Admin = msg.sender;
+    function assignAdmin() public view {
+       Admin;
     }
 
     modifier onlyOwner(){
@@ -137,19 +138,15 @@ contract Vote {
 
     }
 
-
-    function addCandidate(address[] memory candidateNames) external onlyOwner{
-        require(candidateNames.length == 3, "candidates must be three");
-        voters[Admin].weight = totalSupply;
-
-        for (uint i = 0; i < candidateNames.length; i++) {
-            candidates.push(Candidates({
-                candid: candidateNames[i],
-                voteCount: 0
-            }));
-        }
-
-    }
+    /*function addCandidate(address _candid, string calldata _name, address _votee) external onlyOwner{
+        Candidates storage _candidates = candidates[_votee];
+        require(_candidates.status == false, "Candidate already existed");
+        _candidates.candid = _candid;
+        _candidates.name = _name;
+        _candidates.voteCount = 0;
+        _candidates.status = true;
+        _candidateKey.push(_votee);
+    }*/
 
     function getAccessToVote(address voter) public {
         require(msg.sender == Admin, "Only Admin can give access to vote");
@@ -162,29 +159,34 @@ contract Vote {
 
     }
 
+
+    function vote (address _candidateA, address _candidateB, address _candidateC) internal {
+        Voter storage sender = voters[msg.sender];
+        require(sender.accessToVote != 0, "Cannot vote");
+        require(!sender.isVoted, "Already voted.");
+        sender.isVoted = true;
+        total[_candidateA] += 3;
+        total[_candidateB] += 2;
+        total[_candidateC] += 1;
+    }
+
+
     function vote(uint _candidate) public {
         Voter storage sender = voters[msg.sender];
         require(sender.accessToVote != 0, "Cannot vote");
         require(!sender.isVoted, "Already voted.");
-        sender.voted = true;
-        sender.vote = _candidate;
+        sender.isVoted = true;
+        sender.voteIndex = _candidate;
 
-        Candidates[_candidate].voteCount += sender.accessToVote;
+        candidates[_candidate].voteCount += sender.accessToVote;
     }
 
     function winnerCandid() public view returns (uint _winnerCandid) {
 
-        uint winnerVoteCount = 0;
-        for (uint i = 0; i < candidates.length; i++) {
-            if (candidates[i].voteCount > winnerVoteCount) {
-                winnerVoteCount = candidates[i].voteCount;
-                _winnerCandid = i;
-            }
-        }
     }
 
     function winnerAddress() public view returns (address _winnerAddress) {
-        _winnerAddress = candidates[winnerCandid()].name;
+        _winnerAddress = candidates[winnerCandid()].candid;
     }
     
 }
